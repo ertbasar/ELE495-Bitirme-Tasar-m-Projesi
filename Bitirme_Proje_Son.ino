@@ -3,6 +3,7 @@
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 #include <IRremote.h>
+#include <TimerOne.h>
 IRsend irsend;
 /* This driver reads raw data from the BNO055
 
@@ -48,14 +49,24 @@ unsigned int rawsesaz[68] = {4550,4350,550,1700,550,1650,550,1650,600,550,500,60
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28);
 bool basildi=false;
-
+int a=0;
+int kes=0;
+int girdi=0;
+int k=0;
+unsigned long eski_zaman;
 /**************************************************************************/
 /*
     Arduino setup function (automatically called at startup)
 */
 /**************************************************************************/
+
 void setup(void)
 {
+  pinMode(5,OUTPUT);
+  pinMode(6,OUTPUT);
+  
+//  cli();
+//  sei();
   Serial.begin(115200);
   Serial.println(F("Orientation Sensor Raw Data Test")); Serial.println(F(""));
 
@@ -79,6 +90,24 @@ void setup(void)
   bno.setExtCrystalUse(true);
 
   Serial.println(F("Calibration status values: 0=uncalibrated, 3=fully calibrated"));
+//  cli();
+//  /* Ayarlamaların yapılabilmesi için öncelikle kesmeler durduruldu */
+//
+//  /* Timer1 kesmesi saniyede bir çalışacak şekilde ayarlanacaktır (1 Hz)*/
+//  TCCR1A = 0;
+//  TCCR1B = 0;
+//  TCNT1  = 0;
+//  OCR1A = 46872;
+//  //OCR1A = 15534;
+//  /* Bir saniye aralıklar için zaman sayıcısı ayarlandı */
+//  TCCR1B |= (1 << WGM12);
+//  /* Adımlar arasında geçen süre kristal hızının 1024'e bölümü olarak ayarlandı */
+//  TCCR1B |= (1 << CS12) | (1 << CS10);
+//  TIMSK1 |= (1 << OCIE1A);
+//  /* Timer1 kesmesi aktif hale getirildi */
+//
+//  sei();
+  /* Timer1 kesmesinin çalışabilmesi için tüm kesmeler aktif hale getirildi */
 }
 
 /**************************************************************************/
@@ -87,8 +116,26 @@ void setup(void)
     should go here)
 */
 /**************************************************************************/
+//ISR(TIMER4_COMPA_vect){
+//  kes=1;
+//   Serial.println(F("\nnmdfkjjfwkjfk\n"));
+//   TIMSK4 &= ~(1 << OCIE4A);
+//}
+
+//void inter(void){
+////Timer1.start();
+//if(k!=1){
+//kes=1;
+//Timer1.stop();
+//}
+//Serial.println(k);
+//Serial.println(F("\nnmdfkjjfwkjfk\n"));
+////goto mod_secimi;
+//k=0;
+//}
 void loop(void)
 {
+  
   // Possible vector values can be:
   // - VECTOR_ACCELEROMETER - m/s^2
   // - VECTOR_MAGNETOMETER  - uT
@@ -124,7 +171,7 @@ void loop(void)
   /* Display calibration status for each sensor. */
   uint8_t system, gyro, accel, mag = 0;
   bno.getCalibration(&system, &gyro, &accel, &mag);
-  while(!(system==3)) {
+  while(a==0&&!(system==3)) {
   bno.getCalibration(&system, &gyro, &accel, &mag);
   Serial.print(F("CALIBRATION: Sys="));
   Serial.print(system, DEC);
@@ -136,7 +183,12 @@ void loop(void)
   Serial.println(mag, DEC);
   }
   Serial.print(F("Fully Calibrated\n"));
+  a=1;
  mod_secimi:
+ digitalWrite(5,HIGH);
+ digitalWrite(6,HIGH);
+ eski_zaman=0;
+ kes=0;
  Serial.print(F("Mod Secimi\n"));
  delay(1000);
  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
@@ -148,9 +200,10 @@ void loop(void)
   Serial.print(euler.z());
   Serial.print(F("\t\t"));
 if((euler.x()>=280&&euler.x()<350)&&(euler.y()>=-90&&euler.y()<-75)&&(euler.z()>=170||euler.z()<10)){
+ digitalWrite(5,HIGH);
+ digitalWrite(6,LOW);
   sag_mod:
   delay(1000);
-  
  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
   Serial.print(F("sag_mod\n"));
   Serial.print(F("X: "));
@@ -164,21 +217,29 @@ if((euler.x()>=280&&euler.x()<350)&&(euler.y()>=-90&&euler.y()<-75)&&(euler.z()>
   basildi=true;
   Serial.print(F("\nkanalart"));
   irsend.sendRaw(rawkanart,68,38);
+  digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
 }
 if((!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=75&&euler.y()<90)&&(euler.z()>=170||euler.z()<10)){
   basildi=true;
   Serial.print(F("\nkanalazal"));
   irsend.sendRaw(rawkanalaz,68,38);
+  digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
 }
 if((!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=-110&&euler.z()<-70)){
   basildi=true;
   Serial.print(F("\nsesart"));
   irsend.sendRaw(rawsesart,68,38);
+    digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
 }
 if((!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=70&&euler.z()<110)){
   basildi=true;
   Serial.print(F("\nsesazalt"));
   irsend.sendRaw(rawsesaz,68,38);
+    digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
 }
 if((!basildi)&&(euler.x()>=330||euler.x()<30)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=-10&&euler.z()<10)){
   basildi=true;
@@ -189,50 +250,224 @@ if((euler.x()>=275&&euler.x()<315)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=
   //0
   Serial.print(F("\nresetlendi"));
   basildi=false;
+digitalWrite(5,HIGH);
+ digitalWrite(6,LOW);
 }
 goto sag_mod;
 }
 else if((euler.x()>=280&&euler.x()<350)&&(euler.y()>=75&&euler.y()<90)&&(euler.z()>=170||euler.z()<10)){
+  digitalWrite(5,LOW);
+ digitalWrite(6,HIGH);
+  delay(2000);
+  girdi=0;
+  kes=0;
+  k=0;
   sol_mod:
-  //delay(1000);
-  //Serial.print(F("sol_mod\n"));
+  //delay(250);
   imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-  if((!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=-90&&euler.y()<-75)&&(euler.z()>=170||euler.z()<10)){
+//  Serial.print(F("X: "));
+//  Serial.print(euler.x());
+//  Serial.print(F(" Y: "));
+//  Serial.print(euler.y());
+//  Serial.print(F(" Z: "));
+//  Serial.print(euler.z());
+//  Serial.print(F("\t\t"));
+//  //delay(250);
+//  Serial.print(F("sol_mod\n"));
+  //imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  if((girdi<4)&&(!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=-90&&euler.y()<-75)&&(euler.z()>=170||euler.z()<10)){
   basildi=true;
   Serial.print(F("\nkana1"));
   irsend.sendRaw(raw1,68,38);
+  eski_zaman=millis();
+  digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
+  //Serial.print(eski_zaman);
+//  k=1;
+//  Timer1.initialize(3000000);
+//  Timer1.attachInterrupt(inter);
+//  cli();
+//  /* Ayarlamaların yapılabilmesi için öncelikle kesmeler durduruldu */
+//
+//  /* Timer1 kesmesi saniyede bir çalışacak şekilde ayarlanacaktır (1 Hz)*/
+//  TCCR1A = 0;
+//  TCCR1B = 0;
+//  TCNT1  = 0;
+//  OCR1A = 46872;
+//  //OCR1A = 15534;
+//  /* Bir saniye aralıklar için zaman sayıcısı ayarlandı */
+//  TCCR1B |= (1 << WGM12);
+//  /* Adımlar arasında geçen süre kristal hızının 1024'e bölümü olarak ayarlandı */
+//  TCCR1B |= (1 << CS12) | (1 << CS10);
+//  TIMSK1 |= (1 << OCIE1A);
+//  /* Timer1 kesmesi aktif hale getirildi */
+//
+//  sei();
+////  OCR1A = 46872;
+////  sei();
+  girdi=girdi+1;
 }
-if((!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=75&&euler.y()<90)&&(euler.z()>=170||euler.z()<10)){
+if((girdi<4)&&(!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=75&&euler.y()<90)&&(euler.z()>=170||euler.z()<10)){
   basildi=true;
   Serial.print(F("\nkanal2"));
   irsend.sendRaw(raw2,68,38);
+  eski_zaman=millis();
+  digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
+//cli();
+//  /* Ayarlamaların yapılabilmesi için öncelikle kesmeler durduruldu */
+//
+//  /* Timer1 kesmesi saniyede bir çalışacak şekilde ayarlanacaktır (1 Hz)*/
+//  TCCR1A = 0;
+//  TCCR1B = 0;
+//  TCNT1  = 0;
+//  OCR1A = 46872;
+//  //OCR1A = 15534;
+//  /* Bir saniye aralıklar için zaman sayıcısı ayarlandı */
+//  TCCR1B |= (1 << WGM12);
+//  /* Adımlar arasında geçen süre kristal hızının 1024'e bölümü olarak ayarlandı */
+//  TCCR1B |= (1 << CS12) | (1 << CS10);
+//  TIMSK1 |= (1 << OCIE1A);
+//  /* Timer1 kesmesi aktif hale getirildi */
+//
+//  sei();
+//  OCR1A = 46872;
+//  sei();
+  //girdi=girdi+1;
 }
-if((!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=-10&&euler.y()<-10)&&(euler.z()>=-110&&euler.z()<-70)){
+if((girdi<4)&&(!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=-110&&euler.z()<-70)){
   basildi=true;
   Serial.print(F("\nkanal3"));
   irsend.sendRaw(raw3,68,38);
+  eski_zaman=millis();
+  digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
+//cli();
+  /* Ayarlamaların yapılabilmesi için öncelikle kesmeler durduruldu */
+
+  /* Timer1 kesmesi saniyede bir çalışacak şekilde ayarlanacaktır (1 Hz)*/
+//  TCCR1A = 0;
+//  TCCR1B = 0;
+//  TCNT1  = 0;
+//  OCR1A = 46872;
+//  //OCR1A = 15534;
+//  /* Bir saniye aralıklar için zaman sayıcısı ayarlandı */
+//  TCCR1B |= (1 << WGM12);
+//  /* Adımlar arasında geçen süre kristal hızının 1024'e bölümü olarak ayarlandı */
+//  TCCR1B |= (1 << CS12) | (1 << CS10);
+//  TIMSK1 |= (1 << OCIE1A);
+//  /* Timer1 kesmesi aktif hale getirildi */
+//
+//  sei();
+////  OCR1A = 46872;
+////  sei();
+ girdi=girdi+1;
 }
-if((!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=70&&euler.z()<110)){
+if((girdi<4)&&(!basildi)&&(euler.x()>=280&&euler.x()<350)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=70&&euler.z()<110)){
   basildi=true;
   Serial.print(F("\nkanal4"));
   irsend.sendRaw(raw4,68,38);
+  eski_zaman=millis();
+  digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
+//noInterrupts();
+//cli();
+//  /* Ayarlamaların yapılabilmesi için öncelikle kesmeler durduruldu */
+//
+//  /* Timer1 kesmesi saniyede bir çalışacak şekilde ayarlanacaktır (1 Hz)*/
+//  TCCR4A = 0;
+//  TCCR4B = 0;
+//  TCNT4  = 0;
+//  OCR4A = 46872;
+//  //OCR4A = 15534;
+//  /* Bir saniye aralıklar için zaman sayıcısı ayarlandı */
+//  TCCR4B |= (1 << WGM12);
+//  /* Adımlar arasında geçen süre kristal hızının 1024'e bölümü olarak ayarlandı */
+//  TCCR4B |= (1 << CS12) | (1 << CS10);
+//  TIMSK4 |= (1 << OCIE4A);
+//  /* Timer1 kesmesi aktif hale getirildi */
+//
+//  sei();
+  //interrupts();
+//  OCR1A = 46872;
+//  sei();
+  girdi=girdi+1;
 }
-if((!basildi)&&(euler.x()>=330||euler.x()<30)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=-10&&euler.z()<10)){
+if((girdi<4)&&(!basildi)&&(euler.x()>=330||euler.x()<30)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=-10&&euler.z()<10)){
   basildi=true;
   Serial.print(F("\nkanal5"));
-  irsend.sendRaw(raw5,68,38);
+ irsend.sendRaw(raw5,68,38);
+ eski_zaman=millis();
+ digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
+//cli();
+//  /* Ayarlamaların yapılabilmesi için öncelikle kesmeler durduruldu */
+//
+//  /* Timer1 kesmesi saniyede bir çalışacak şekilde ayarlanacaktır (1 Hz)*/
+//  TCCR1A = 0;
+//  TCCR1B = 0;
+//  TCNT1  = 0;
+//  OCR1A = 46872;
+//  //OCR1A = 15534;
+//  /* Bir saniye aralıklar için zaman sayıcısı ayarlandı */
+//  TCCR1B |= (1 << WGM12);
+//  /* Adımlar arasında geçen süre kristal hızının 1024'e bölümü olarak ayarlandı */
+//  TCCR1B |= (1 << CS12) | (1 << CS10);
+//  TIMSK1 |= (1 << OCIE1A);
+//  /* Timer1 kesmesi aktif hale getirildi */
+//
+//  sei();
+////  OCR1A = 46872;
+////  sei();
+  girdi=girdi+1;
 }
-if((!basildi)&&(euler.x()>=150&&euler.x()<210)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=-10&&euler.z()<10)){
+if((girdi<4)&&(!basildi)&&(euler.x()>=150&&euler.x()<210)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=-10&&euler.z()<10)){
   basildi=true;
   Serial.print(F("\nkanal6"));
-  //irsend.sendRaw(raw6,68,38);
+  irsend.sendRaw(raw6,68,38);
+  eski_zaman=millis();
+  digitalWrite(5,LOW);
+ digitalWrite(6,LOW);
+//cli();
+//  /* Ayarlamaların yapılabilmesi için öncelikle kesmeler durduruldu */
+//
+//  /* Timer1 kesmesi saniyede bir çalışacak şekilde ayarlanacaktır (1 Hz)*/
+//  TCCR1A = 0;
+//  TCCR1B = 0;
+//  TCNT1  = 0;
+//  OCR1A = 46872;
+//  //OCR1A = 15534;
+//  /* Bir saniye aralıklar için zaman sayıcısı ayarlandı */
+//  TCCR1B |= (1 << WGM12);
+//  /* Adımlar arasında geçen süre kristal hızının 1024'e bölümü olarak ayarlandı */
+//  TCCR1B |= (1 << CS12) | (1 << CS10);
+//  TIMSK1 |= (1 << OCIE1A);
+//  /* Timer1 kesmesi aktif hale getirildi */
+//
+//  sei();
+////  OCR1A = 46872;
+////  sei();
+  girdi=girdi+1;
 }
 
 if((euler.x()>=275&&euler.x()<315)&&(euler.y()>=-10&&euler.y()<10)&&(euler.z()>=-10&&euler.z()<10)){
   //0
-  Serial.print(F("\nresetlendi"));
-  Serial.print(F("\nsol_mod"));
+//  Serial.print(F("\nresetlendi"));
+//  Serial.print(girdi);
+  //Serial.print(F("\nsol_mod"));
   basildi=false;
+ digitalWrite(5,LOW);
+ digitalWrite(6,HIGH);
+}
+if(girdi==3){
+// cli();
+  kes=0;
+  Serial.print(F("\ncikis"));
+goto mod_secimi;
+}
+if(((millis()-eski_zaman)>=3000)&&(eski_zaman!=0)){
+ Serial.print(F("\nucsaniye")); 
+goto mod_secimi;  
 }
 goto sol_mod;
 }
